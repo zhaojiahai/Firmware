@@ -2245,8 +2245,11 @@ MavlinkReceiver::receive_start(pthread_t *thread, Mavlink *parent)
 	(void)pthread_attr_getschedparam(&receiveloop_attr, &param);
 	param.sched_priority = SCHED_PRIORITY_MAX - 80;
 	(void)pthread_attr_setschedparam(&receiveloop_attr, &param);
-
+#ifdef __PX4_NUTTX
+	pthread_attr_setstacksize(&receiveloop_attr, 1900);
+#else
 	pthread_attr_setstacksize(&receiveloop_attr, 2100);
+#endif
 	pthread_create(thread, &receiveloop_attr, MavlinkReceiver::start_helper, (void *)parent);
 
 	pthread_attr_destroy(&receiveloop_attr);
