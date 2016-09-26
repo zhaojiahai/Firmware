@@ -75,7 +75,7 @@
 #include <systemlib/param/param.h>
 #include <systemlib/rc_check.h>
 #include <systemlib/state_table.h>
-#include <systemlib/systemlib.h>
+#include <float.h>
 #include <systemlib/hysteresis/hysteresis.h>
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/actuator_controls.h>
