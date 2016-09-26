@@ -33,6 +33,7 @@
 #include <termios.h>
 #include <px4_log.h>
 #include <px4_time.h>
+#include <px4_tasks.h>
 #include "simulator.h"
 #include "errno.h"
 #include <geo/geo.h>
