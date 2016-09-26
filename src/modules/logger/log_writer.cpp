@@ -35,6 +35,7 @@
 #include "messages.h"
 #include <fcntl.h>
 #include <string.h>
+#include <px4_tasks.h>
 
 #include <mathlib/mathlib.h>
 
