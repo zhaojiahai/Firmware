@@ -254,11 +254,11 @@ private:
 		_actuators{},
 		_attitude{},
 		_manual{},
-		_vehicle_status{}
+		_vehicle_status{},
+		_controls_sent(false)
 #endif
 	{
-		for (unsigned i = 0; i < (sizeof(_actuator_outputs_sub) / sizeof(_actuator_outputs_sub[0])); i++)
-		{
+		for (unsigned i = 0; i < (sizeof(_actuator_outputs_sub) / sizeof(_actuator_outputs_sub[0])); i++) {
 			_actuator_outputs_sub[i] = -1;
 		}
 	}
@@ -321,6 +321,8 @@ private:
 	struct vehicle_attitude_s _attitude;
 	struct manual_control_setpoint_s _manual;
 	struct vehicle_status_s _vehicle_status;
+
+	volatile bool _controls_sent;
 
 	void poll_topics();
 	void handle_message(mavlink_message_t *msg, bool publish);

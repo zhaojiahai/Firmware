@@ -112,6 +112,8 @@ void Simulator::send_controls()
 		pack_actuator_message(msg, i);
 		send_mavlink_message(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS, &msg, 200);
 	}
+
+	_controls_sent = true;
 }
 
 static void fill_rc_input_msg(struct rc_input_values *rc, mavlink_rc_channels_t *rc_channels)
@@ -619,7 +621,9 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 
 		//timed out
 		if (pret == 0) {
-			if (!sim_delay) {
+			// This implements a simple lock-stepping.
+			// Only delay if mavlink controls message was sent, otherwise we risk to deadlock
+			if (!sim_delay && _controls_sent) {
 				// we do not want to spam the console by default
 				// PX4_WARN("mavlink sim timeout for %d ms", max_wait_ms);
 				sim_delay = true;
@@ -629,6 +633,8 @@ void Simulator::pollForMAVLinkMessages(bool publish, int udp_port)
 
 			continue;
 		}
+
+		_controls_sent = false;
 
 		if (sim_delay) {
 			sim_delay = false;
