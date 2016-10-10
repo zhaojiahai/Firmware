@@ -8,13 +8,18 @@ matrix:
   include:
     - os: linux
       sudo: required
-      env: GCC_VER=4.8 DOCKER_REPO="px4io/px4-dev-base:2016-07-14"
+      env: GCC_VER=4.8 DOCKER_REPO="px4io/px4-dev-base:2016-07-14" TEST_CMD="make check_qgc_firmware VECTORCONTROL=1"
+      services:
+        - docker
+    - os: linux
+      sudo: required
+      env: DOCKER_REPO="px4io/px4-dev-raspi" TEST_CMD="make posix_rpi_cross"
       services:
         - docker
     - os: osx
       sudo: true
       osx_image: xcode8
-      env: CCACHE_CPP2=1
+      env: CCACHE_CPP2=1 TEST_CMD="make tests"
 
 cache:
   ccache: true
@@ -61,9 +66,9 @@ env:
 script:
   - ccache -M 1GB; ccache -z
   - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
-      docker run --rm -v `pwd`:`pwd`:rw -v $HOME/.ccache:$HOME/.ccache:rw -e CCACHE_DIR=$HOME/.ccache -e CI=true -e GIT_SUBMODULES_ARE_EVIL=1 -w=`pwd` --user=$UID -it ${DOCKER_REPO} /bin/bash -c "make check_qgc_firmware VECTORCONTROL=1";
+      docker run --rm -v `pwd`:`pwd`:rw -v $HOME/.ccache:$HOME/.ccache:rw -e CCACHE_DIR=$HOME/.ccache -e CI=true -e GIT_SUBMODULES_ARE_EVIL=1 -w=`pwd` --user=$UID -it ${DOCKER_REPO} /bin/bash -c "${TEST_CMD}";
     elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
-      make tests;
+      ${TEST_CMD};
     fi
   - ccache -s
 
