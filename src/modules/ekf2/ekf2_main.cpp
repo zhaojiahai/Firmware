@@ -509,8 +509,8 @@ void Ekf2::task_main()
 			sensors.baro_alt_meter -= 20.0f;
 
 		} else if (_reset_trigger.get() == 2) {
-			gps.lat += 10000000;	// add insane offset to positon, good luck!
-			gps.lon += 10000000;
+			gps.lat += 100000;	// add insane offset to positon, good luck!
+			gps.lon += 100000;
 		}
 
 		// in replay mode we are getting the actual timestamp from the sensor topic
