@@ -369,11 +369,11 @@ Ekf2::Ekf2():
 	_ev_pos_y(this, "EKF2_EV_POS_Y", false, _params->ev_pos_body(1)),
 	_ev_pos_z(this, "EKF2_EV_POS_Z", false, _params->ev_pos_body(2)),
 	_arspFusionThreshold(this, "EKF2_ARSP_THR", false),
-	_tau_vel(this, "EKF2_TAU_VEL", false, &_params->vel_Tau),
-	_tau_pos(this, "EKF2_TAU_POS", false, &_params->pos_Tau),
-	_gyr_bias_init(this, "EKF2_GBIAS_INIT", false, &_params->switch_on_gyro_bias),
-	_acc_bias_init(this, "EKF2_ABIAS_INIT", false, &_params->switch_on_accel_bias),
-	_ang_err_init(this, "EKF2_ANGERR_INIT", false, &_params->initial_tilt_err),
+	_tau_vel(this, "EKF2_TAU_VEL", false, _params->vel_Tau),
+	_tau_pos(this, "EKF2_TAU_POS", false, _params->pos_Tau),
+	_gyr_bias_init(this, "EKF2_GBIAS_INIT", false, _params->switch_on_gyro_bias),
+	_acc_bias_init(this, "EKF2_ABIAS_INIT", false, _params->switch_on_accel_bias),
+	_ang_err_init(this, "EKF2_ANGERR_INIT", false, _params->initial_tilt_err),
 	_airspeed_mode(this, "FW_ARSP_MODE", false),
 	_reset_trigger(this, "EKF2_TRIG_MODE", false)
 {
