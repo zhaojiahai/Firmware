@@ -391,6 +391,13 @@ void task_main(int argc, char *argv[])
 			motor_out[2] = _outputs.output[3];
 			motor_out[3] = _outputs.output[1];
 
+			// thrust ~ omega^2
+			// omega ~ sqrt(thrust)
+			motor_out[0] = sqrtf(motor_out[0]);
+			motor_out[1] = sqrtf(motor_out[1]);
+			motor_out[2] = sqrtf(motor_out[2]);
+			motor_out[3] = sqrtf(motor_out[3]);
+
 			g_dev->set_esc_speeds(motor_out);
 
 			if (_outputs_pub != nullptr) {
