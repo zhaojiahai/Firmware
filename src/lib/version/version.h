@@ -40,31 +40,41 @@
  * @author Anton Babushkin <anton.babushkin@me.com>
  */
 
-#ifndef VERSION_H_
-#define VERSION_H_
+#pragma once
 
-/* The preferred method for publishing a board name up is to
- * provide board_name()
- *
+
+/* The preferred method for publishing a board name is to
+ * define it in board_config.h as BOARD_NAME
  */
+#if defined(CONFIG_ARCH_BOARD_SITL)
+# define BOARD_NAME "SITL"
+#elif defined(CONFIG_ARCH_BOARD_EAGLE)
+# define BOARD_NAME "EAGLE"
+#elif defined(CONFIG_ARCH_BOARD_EXCELSIOR)
+# define BOARD_NAME "EXCELSIOR"
+#elif defined(CONFIG_ARCH_BOARD_RPI)
+# define BOARD_NAME "RPI"
+#elif defined(CONFIG_ARCH_BOARD_BEBOP)
+# define BOARD_NAME "BEBOP"
+#else
+# include "board_config.h"
+# ifndef BOARD_NAME
+#  error "board_config.h must define BOARD_NAME"
+# endif
+#endif
+
+
 __BEGIN_DECLS
 
-__EXPORT const char *board_name(void);
+/**
+ * get the board name as string (including the version if there are multiple)
+ */
+static inline const char *px4_board_name(void)
+{
+	return BOARD_NAME;
+}
+
+
 
 __END_DECLS
 
-#if defined(CONFIG_ARCH_BOARD_SITL)
-#  define	HW_ARCH "SITL"
-#elif defined(CONFIG_ARCH_BOARD_EAGLE)
-#  define	HW_ARCH "EAGLE"
-#elif defined(CONFIG_ARCH_BOARD_EXCELSIOR)
-#  define HW_ARCH "EXCELSIOR"
-#elif defined(CONFIG_ARCH_BOARD_RPI)
-#  define	HW_ARCH "RPI"
-#elif defined(CONFIG_ARCH_BOARD_BEBOP)
-#  define	HW_ARCH "BEBOP"
-#else
-#define HW_ARCH (board_name())
-#endif
-
-#endif /* VERSION_H_ */
