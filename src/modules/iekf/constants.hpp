@@ -29,7 +29,10 @@ struct X {
 	static const uint8_t pos_d = 13;
 	static const uint8_t terrain_alt = 14;
 	static const uint8_t baro_bias = 15;
-	static const uint8_t n = 16;
+	static const uint8_t wind_n = 16;
+	static const uint8_t wind_e = 17;
+	static const uint8_t wind_d = 18;
+	static const uint8_t n = 19;
 };
 
 /**
@@ -54,7 +57,10 @@ struct Xe {
 	static const uint8_t pos_d = 12;
 	static const uint8_t terrain_alt = 13;
 	static const uint8_t baro_bias = 14;
-	static const uint8_t n = 15;
+	static const uint8_t wind_n = 15;
+	static const uint8_t wind_e = 16;
+	static const uint8_t wind_d = 17;
+	static const uint8_t n = 18;
 };
 
 /**
@@ -115,6 +121,14 @@ struct Y_mag {
 	static const uint8_t mag_e = 1;
 	static const uint8_t mag_d = 2;
 	static const uint8_t n = 3;
+};
+
+/**
+ * Airspeed measurement
+ */
+struct Y_airspeed {
+	static const uint8_t airspeed = 0;
+	static const uint8_t n = 1;
 };
 
 static const float BETA_TABLE[] = {

@@ -25,6 +25,7 @@ public:
 	void correctMag(const sensor_combined_s *msg);
 	void correctBaro(const sensor_combined_s *msg);
 	void correctGps(const vehicle_gps_position_s *msg);
+	void correctAirspeed(const airspeed_s *msg);
 	void predict(float dt);
 	Vector<float, X::n> applyErrorCorrection(const Vector<float, Xe::n> &d_xe);
 	void setP(const SquareMatrix<float, Xe::n> &P);
@@ -37,6 +38,7 @@ private:
 	// subscriptions
 	ros::Subscriber _subImu;
 	ros::Subscriber _subGps;
+	ros::Subscriber _subAirspeed;
 
 	// publishers
 	ros::Publisher _pubAttitude;
@@ -58,4 +60,5 @@ private:
 	uint64_t _timestampMag;
 	uint64_t _timestampBaro;
 	uint64_t _timestampGps;
+	uint64_t _timestampAirspeed;
 };

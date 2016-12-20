@@ -8,6 +8,7 @@ IEKF::IEKF() :
 	_nh(), // node handle
 	_subImu(_nh.subscribe("sensor_combined", 0, &IEKF::callbackImu, this)),
 	_subGps(_nh.subscribe("vehicle_gps_position", 0, &IEKF::correctGps, this)),
+	_subAirspeed(_nh.subscribe("airspeed", 0, &IEKF::correctAirspeed, this)),
 	_pubAttitude(_nh.advertise<vehicle_attitude_s>("vehicle_attitude", 0)),
 	_pubLocalPosition(_nh.advertise<vehicle_local_position_s>("vehicle_local_position", 0)),
 	_pubGlobalPosition(_nh.advertise<vehicle_global_position_s>("vehicle_global_position", 0)),
@@ -50,6 +51,9 @@ IEKF::IEKF() :
 	_P0Diag(Xe::pos_d) = 1e9;
 	_P0Diag(Xe::terrain_alt) = 1e9;
 	_P0Diag(Xe::baro_bias) = 1e9;
+	_P0Diag(Xe::wind_n) = 1e9;
+	_P0Diag(Xe::wind_e) = 1e9;
+	_P0Diag(Xe::wind_d) = 1e9;
 	_P = diag(_P0Diag);
 
 	// initial magnetic field guess
@@ -87,6 +91,9 @@ Vector<float, X::n> IEKF::dynamics(float t, const Vector<float, X::n> &x, const 
 	dx(X::pos_d) = x(X::vel_d);
 	dx(X::terrain_alt) = 0;
 	dx(X::baro_bias) = 0;
+	dx(X::wind_n) = 0;
+	dx(X::wind_e) = 0;
+	dx(X::wind_d) = 0;
 	return dx;
 }
 
@@ -398,14 +405,18 @@ void IEKF::correctGps(const vehicle_gps_position_s *msg)
 	double lat_deg = msg->lat * 1e-7;
 	double lon_deg = msg->lon * 1e-7;
 	float alt_m = msg->alt * 1e-3;
+	float vel_stddev = sqrt(
+				   _P(Xe::vel_n, Xe::vel_n)
+				   + _P(Xe::vel_e, Xe::vel_e)
+				   + _P(Xe::vel_d, Xe::vel_d));
 
 	// init global reference
-	if (!_origin.xyInitialized()) {
+	if (!_origin.xyInitialized() && vel_stddev < 1.0f) {
 		ROS_INFO("gps map ref init %12.6f %12.6f", double(lat_deg), double(lon_deg));
 		_origin.xyInitialize(lat_deg, lon_deg, msg->timestamp);
 	}
 
-	if (!_origin.altInitialized()) {
+	if (!_origin.altInitialized() && _P(Xe::pos_d, Xe::pos_d) < 1.0f) {
 		ROS_INFO("gps alt init %12.2f", double(alt_m));
 		_origin.altInitialize(alt_m, msg->timestamp);
 	}
@@ -480,6 +491,74 @@ void IEKF::correctGps(const vehicle_gps_position_s *msg)
 	setP(_P + dP);
 }
 
+
+void IEKF::correctAirspeed(const airspeed_s *msg)
+{
+	// return if no new data
+	float dt = 0;
+	uint64_t timestampAirspeedNew = msg->timestamp;
+
+	if (timestampAirspeedNew == _timestampAirspeed) {
+		return;
+	}
+
+	dt = (timestampAirspeedNew - _timestampAirspeed) / 1.0e6f;
+
+	if (dt < 0) {
+		return;
+	}
+
+	_timestampAirspeed = timestampAirspeedNew;
+
+	// attitude info
+	Quatf q_nb(
+		_x(X::q_nb_0), _x(X::q_nb_1),
+		_x(X::q_nb_2), _x(X::q_nb_3));
+	Dcmf C_nb = q_nb;
+
+	// predicted airspeed
+	Vector3f wind_n(_x(X::wind_n), _x(X::wind_e), _x(X::wind_d));
+	Vector3f vel_n(_x(X::vel_n), _x(X::vel_d), _x(X::vel_d));
+	Vector3f wind_rel_b = q_nb.conjugate_inversed(wind_n - vel_n);
+	float yh = wind_rel_b(0); // body x component aligned with pitot tube
+
+	// measured airspeed
+	float y = msg->true_airspeed_unfiltered_m_s;
+
+	Vector<float, 1> r;
+	r(0) = y - yh;
+
+	// define R
+	Matrix<float, Y_airspeed::n, Y_airspeed::n> R;
+	R(Y_airspeed::airspeed, Y_airspeed::airspeed) = 1.0f / dt;
+
+	// define H
+	// TODO make this invariant
+	Matrix<float, Y_airspeed::n, Xe::n> H;
+	H(Y_airspeed::airspeed, Xe::vel_n) = C_nb(0, 0);
+	H(Y_airspeed::airspeed, Xe::vel_e) = C_nb(1, 0);
+	H(Y_airspeed::airspeed, Xe::vel_d) = C_nb(2, 0);
+	H(Y_airspeed::airspeed, Xe::wind_n) = -C_nb(0, 0);
+	H(Y_airspeed::airspeed, Xe::wind_e) = -C_nb(1, 0);
+	H(Y_airspeed::airspeed, Xe::wind_d) = -C_nb(2, 0);
+
+	// kalman correction
+	Vector<float, Xe::n> dxe;
+	SquareMatrix<float, Xe::n> dP;
+	float beta = 0;
+	kalman_correct<float, Xe::n, Y_airspeed::n>(_P, H, R, r, dxe, dP, beta);
+
+	if (beta > BETA_TABLE[Y_airspeed::n]) {
+		ROS_DEBUG("airspeed fault");
+	}
+
+	//ROS_INFO("airspeed correction");
+	//dxe.print();
+
+	setX(applyErrorCorrection(dxe));
+	setP(_P + dP);
+}
+
 void IEKF::predict(float dt)
 {
 	// define process noise matrix
@@ -499,6 +578,9 @@ void IEKF::predict(float dt)
 	Q(Xe::pos_d, Xe::pos_d) = 1e-6;
 	Q(Xe::terrain_alt, Xe::terrain_alt) = 1e-1f;
 	Q(Xe::baro_bias, Xe::baro_bias) = 1e-3f;
+	Q(Xe::wind_n, Xe::wind_n) = 1e-3f;
+	Q(Xe::wind_e, Xe::wind_e) = 1e-3f;
+	Q(Xe::wind_d, Xe::wind_d) = 1e-3f;
 
 	// define A matrix
 	Matrix<float, Xe::n, Xe::n> A;
@@ -621,6 +703,9 @@ Vector<float, X::n> IEKF::applyErrorCorrection(const Vector<float, Xe::n> &d_xe)
 	x(X::pos_d) += d_xe(Xe::pos_d);
 	x(X::terrain_alt) += d_xe(Xe::terrain_alt);
 	x(X::baro_bias) += d_xe(Xe::baro_bias);
+	x(X::wind_n) += d_xe(Xe::wind_n);
+	x(X::wind_e) += d_xe(Xe::wind_e);
+	x(X::wind_d) += d_xe(Xe::wind_d);
 	return x;
 }
 
@@ -743,21 +828,20 @@ void IEKF::publish()
 	Vector3f a_b(_u(U::accel_bx), _u(U::accel_by), _u(U::accel_bz));
 	Vector3f a_n = q_nb.conjugate(a_b / _x(X::accel_scale));
 	ros::Time now = ros::Time::now();
+
+	// predicted airspeed
+	Vector3f wind_n(_x(X::wind_n), _x(X::wind_e), _x(X::wind_d));
+	Vector3f vel_n(_x(X::vel_n), _x(X::vel_d), _x(X::vel_d));
+	Vector3f wind_rel_b = q_nb.conjugate_inversed(wind_n - vel_n);
+	float airspeed = wind_rel_b(0); // body x component aligned with pitot tube
+
 	float vel_stddev = sqrt(
 				   _P(Xe::vel_n, Xe::vel_n)
 				   + _P(Xe::vel_e, Xe::vel_e)
 				   + _P(Xe::vel_d, Xe::vel_d));
-	float rot_stddev = sqrt(
-				   _P(Xe::rot_n, Xe::rot_n)
-				   + _P(Xe::rot_e, Xe::rot_e)
-				   + _P(Xe::rot_d, Xe::rot_d));
-	float pos_stddev = sqrt(
-				   _P(Xe::pos_n, Xe::pos_n)
-				   + _P(Xe::pos_e, Xe::pos_e)
-				   + _P(Xe::pos_d, Xe::pos_d));
 
 	// publish attitude
-	if (rot_stddev < 1e-1f) {
+	{
 		vehicle_attitude_s msg = {};
 		msg.timestamp = now.toNSec() / 1e3;
 		msg.q[0] = _x(X::q_nb_0);
@@ -811,7 +895,7 @@ void IEKF::publish()
 	}
 
 	// publish global position
-	if (vel_stddev < 1.0f && pos_stddev < 3.0f) {
+	if (vel_stddev < 1.0f && _origin.xyInitialized() & _origin.altInitialized()) {
 		double lat_deg = 0;
 		double lon_deg = 0;
 		float alt_m = 0;
@@ -854,8 +938,8 @@ void IEKF::publish()
 		msg.x_pos = _x(X::pos_n);
 		msg.y_pos = _x(X::pos_e);
 		msg.z_pos = _x(X::pos_d);
-		msg.airspeed = 0;
-		msg.airspeed_valid = false;
+		msg.airspeed = airspeed;
+		msg.airspeed_valid = vel_stddev < 1.0f;
 		msg.vel_variance[0] = _P(Xe::vel_n, Xe::vel_n);
 		msg.vel_variance[1] = _P(Xe::vel_e, Xe::vel_e);
 		msg.vel_variance[2] = _P(Xe::vel_d, Xe::vel_d);

@@ -66,6 +66,7 @@ Node::Node() :
 	_hmap.put("sensor_baro", ORB_ID(sensor_baro));
 	_hmap.put("control_state", ORB_ID(control_state));
 	_hmap.put("estimator_status", ORB_ID(estimator_status));
+	_hmap.put("airspeed", ORB_ID(airspeed));
 }
 
 void Node::spin()
