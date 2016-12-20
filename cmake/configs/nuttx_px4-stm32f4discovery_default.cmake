@@ -43,6 +43,7 @@ set(config_module_list
 	lib/external_lgpl
 	lib/geo
 	lib/conversion
+	lib/version
 	lib/DriverFramework/framework
 	platforms/nuttx
 
